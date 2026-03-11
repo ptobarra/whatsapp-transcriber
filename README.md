@@ -77,7 +77,7 @@ whatsapp-transcriber/
 
 Health check.
 
-**Response**
+RESPONSE
 
 ```json
 { "status": "ok" }
@@ -87,7 +87,7 @@ Health check.
 
 Transcribes all `.ogg` files from `input_audios/`.
 
-**Request body**
+REQUEST BOY
 
 ```json
 {
@@ -96,7 +96,7 @@ Transcribes all `.ogg` files from `input_audios/`.
 }
 ```
 
-**Response body**
+RESPONSE BODY
 
 ```json
 {
