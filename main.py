@@ -1,3 +1,10 @@
+"""FastAPI service to transcribe WhatsApp `.ogg` audio files with Faster-Whisper.
+
+The service scans `input_audios/`, transcribes each `.ogg` file, writes output
+text files to `transcriptions/`, and exposes endpoints to trigger batch
+transcription and check service health.
+"""
+
 from pathlib import Path
 from typing import List
 
@@ -23,22 +30,49 @@ _model: WhisperModel | None = None
 
 
 class TranscribeRequest(BaseModel):
+    """Request payload for `POST /transcribe-all`.
+
+    Attributes:
+        language: Language hint used by Whisper (for example, `"es"` or `"en"`).
+        vad_filter: Enables voice activity detection to trim non-speech segments.
+    """
+
     language: str = "es"
     vad_filter: bool = True
 
 
 class FileResult(BaseModel):
+    """Transcription metadata for one processed audio file.
+
+    Attributes:
+        file: Input audio filename.
+        output: Generated output text filename.
+        detected_language: Language detected by the model for this audio.
+    """
+
     file: str
     output: str
     detected_language: str
 
 
 class TranscribeResponse(BaseModel):
+    """Response payload returned by `POST /transcribe-all`.
+
+    Attributes:
+        processed: Number of audio files processed.
+        results: Per-file transcription metadata.
+    """
+
     processed: int
     results: List[FileResult]
 
 
 def get_model() -> WhisperModel:
+    """Return a singleton Whisper model instance.
+
+    The model is loaded lazily on first use and then reused for subsequent
+    requests to avoid repeated initialization overhead.
+    """
     global _model
     if _model is None:
         print("Loading model...")
@@ -47,6 +81,16 @@ def get_model() -> WhisperModel:
 
 
 def transcribe_all(language: str = "es", vad_filter: bool = True) -> list[FileResult]:
+    """Transcribe all `.ogg` files in `AUDIO_DIR` and write `.txt` outputs.
+
+    Args:
+        language: Language hint passed to Whisper transcription.
+        vad_filter: Whether to enable voice activity detection filtering.
+
+    Returns:
+        list[FileResult]: Metadata for each processed file. Returns an empty
+        list when no `.ogg` files are found.
+    """
     model = get_model()
     audio_files = sorted(AUDIO_DIR.glob("*.ogg"))
     if not audio_files:
@@ -83,11 +127,20 @@ def transcribe_all(language: str = "es", vad_filter: bool = True) -> list[FileRe
 
 @app.get("/health")
 def health():
+    """Health-check endpoint used to verify the API is up."""
     return {"status": "ok"}
 
 
 @app.post("/transcribe-all", response_model=TranscribeResponse)
 def transcribe_endpoint(payload: TranscribeRequest):
+    """Run batch transcription for all input audios and return a summary.
+
+    Args:
+        payload: Transcription configuration received from the request body.
+
+    Returns:
+        TranscribeResponse: Processed file count and per-file result metadata.
+    """
     results = transcribe_all(language=payload.language, vad_filter=payload.vad_filter)
     return TranscribeResponse(processed=len(results), results=results)
 
